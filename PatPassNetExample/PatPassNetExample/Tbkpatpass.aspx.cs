@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Web;
 using Transbank.PatPass;
+using Transbank.Webpay;
 using Transbank.Webpay.Wsdl.Normal;
 
 namespace PatPassNetExample
@@ -21,7 +22,9 @@ namespace PatPassNetExample
             HttpContext.Current.Response.Write("<div style='font-family: Tahoma,Helvetica,Arial,Verdana,sans-serif;'><p style='font-weight: bold; font-size: 200%;'>Ejemplo PatPass - Transacci&oacute;n Normal</p>");
 
             /** Creacion Objeto PatPass */
-            PatPass patpass = new PatPass(Configuration.ForTestingPatPassByWebpayNormal());
+            PatPassByWebpayNormal transaction = new Webpay(
+                Configuration.ForTestingPatPassByWebpayNormal("testpatpassbywebpay@mailinator.com")).
+                    PatPassByWebpayTransaction;
 
             /** Información de Host para crear URL */
             string httpHost = HttpContext.Current.Request.ServerVariables["HTTP_HOST"];
@@ -58,7 +61,7 @@ namespace PatPassNetExample
 
             switch (action)
             {
-                default:
+            default:
                     tx_step = "Inicio de Transacci&oacute;n";
 
                     try
@@ -66,7 +69,7 @@ namespace PatPassNetExample
                         HttpContext.Current.Response.Write("<p style='font-weight: bold; font-size: 150%;'>Etapa: " + tx_step + "</p>");
                         Random random = new Random();
 
-                        var info = new PatPassInfo
+                        PatPassInfo info = new PatPassInfo
                         {
                             /** Identificador de Cliente */
                             ServiceId = "335456675433",
@@ -96,16 +99,16 @@ namespace PatPassNetExample
                         string sessionId = random.Next(0, 1000).ToString();
 
                         /** URL Final */
-                        string urlReturn = sample_baseurl + "?action=result";
+                        string returnUrl = sample_baseurl + "?action=result";
 
                         /** URL Final */
-                        string urlFinal = sample_baseurl + "?action=end";
+                        string finalUrl = sample_baseurl + "?action=end";
 
                         request.Add("amount", amount.ToString());
                         request.Add("buyOrder", buyOrder);
                         request.Add("sessionId", sessionId);
-                        request.Add("urlReturn", urlReturn);
-                        request.Add("urlFinal", urlFinal);
+                        request.Add("returnUrl", returnUrl);
+                        request.Add("finalUrl", finalUrl);
                         request.Add("serviceId", info.ServiceId);
                         request.Add("cardHolderId", info.CardHolderId);
                         request.Add("cardHolderName", info.CardHolderName);
@@ -116,7 +119,7 @@ namespace PatPassNetExample
                         request.Add("expirationDate", info.ExpirationDate.ToString());
 
                         /** Ejecutamos metodo initTransaction desde Libreria */
-                        wsInitTransactionOutput result = patpass.NormalTransaction.initTransaction(amount, buyOrder, sessionId, urlReturn, urlFinal, info);
+                        wsInitTransactionOutput result = transaction.initTransaction(amount, buyOrder, sessionId, returnUrl, finalUrl, info);
 
                         /** Verificamos respuesta de inicio en PatPass */
                         message = !string.IsNullOrEmpty(result.token) ? "Sesion iniciada con exito en PatPass" : "PatPass no disponible";
@@ -148,12 +151,12 @@ namespace PatPassNetExample
                         string token = Request.Form["token_ws"];
                         request.Add("token", token);
 
-                        transactionResultOutput result = patpass.NormalTransaction.getTransactionResult(token);
+                        transactionResultOutput result = transaction.getTransactionResult(token);
 
                         HttpContext.Current.Response.Write("<p style='font-size: 100%; background-color:lightyellow;'><strong>request</strong></br></br> " + new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(request) + "</p>");
                         HttpContext.Current.Response.Write("<p style='font-size: 100%; background-color:lightgrey;'><strong>result</strong></br></br> " + new System.Web.Script.Serialization.JavaScriptSerializer().Serialize(result) + "</p>");
-
-                        if (result.detailOutput[0].responseCode == 0)
+                        wsTransactionDetailOutput output = result.detailOutput[0];
+                        if (output.responseCode == 0)
                         {
                             message = "Suscripci&oacute;n ACEPTADA por PatPass (se deben guardar datos para mostrar voucher)";
 
